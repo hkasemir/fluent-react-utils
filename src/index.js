@@ -1,9 +1,9 @@
-const {parse} = require('babylon');
+const { parse } = require('babylon');
 const walk = require('babylon-walk');
 const astUtils = require('jsx-ast-utils');
 const fluent = require('fluent-syntax');
 const _ = require('lodash');
-const {AST_NODE_TYPES, FLUENT_ATTRS} = require('./constants');
+const { AST_NODE_TYPES, FLUENT_ATTRS } = require('./constants');
 
 const {
   JSXElement,
@@ -13,9 +13,7 @@ const {
   StringLiteral
 } = AST_NODE_TYPES;
 
-const {
-  attrs
-} = FLUENT_ATTRS;
+const { attrs } = FLUENT_ATTRS;
 
 function findLocalizationKey(localizedNode) {
   const prop = astUtils.getProp(
@@ -36,7 +34,7 @@ function getExpressionNodes(children = []) {
 function getLiteralNodes(children = []) {
   return _.filter(children, (n) => {
     return _.get(n, 'type') === JSXText && /\w/.test(_.get(n, 'value'));
-  })
+  });
 }
 
 function getComments(node) {
@@ -47,9 +45,9 @@ function getComments(node) {
   );
   return _.map(commentNodes, (n) => {
     return _.chain(n)
-    .get('expression.innerComments[0].value')
-    .trim()
-    .value();
+      .get('expression.innerComments[0].value')
+      .trim()
+      .value();
   });
 }
 
@@ -71,19 +69,21 @@ function getMessages(node) {
 }
 
 function getAttributesList(node) {
-  const attributes = astUtils.getProp(node.openingElement.attributes, attrs)
-  const l10nAttrs = _.get(attributes, 'value.expression.properties')
+  const attributes = astUtils.getProp(node.openingElement.attributes, attrs);
+  const l10nAttrs = _.get(attributes, 'value.expression.properties');
   return _.map(l10nAttrs, 'key.name');
 }
 
 function pullLocalizedDOMAttributes(node, l10nAttrsList) {
   const attributes = _.get(node, 'openingElement.attributes');
-  const l10nAttributes = _.filter(attributes, att => _.includes(l10nAttrsList, att.name.name))
+  const l10nAttributes = _.filter(attributes, (att) =>
+    _.includes(l10nAttrsList, att.name.name)
+  );
   return _.reduce(
     l10nAttributes,
     (ftlRules, attribute) => {
-      const propName = _.get(attribute, 'name.name')
-      const message = _.get(attribute, 'value.value')
+      const propName = _.get(attribute, 'name.name');
+      const message = _.get(attribute, 'value.value');
       return `${ftlRules}
     .${propName} = ${message}`;
     },
@@ -94,19 +94,14 @@ function pullLocalizedDOMAttributes(node, l10nAttrsList) {
 function findTranslatableMessages(node, localizationKey) {
   const childNode = findChildNode(node);
   let attributes = '';
-  if (
-    astUtils.hasProp(
-      _.get(node, 'openingElement.attributes'),
-      attrs
-    )
-  ) {
-    const l10nAttrsList = getAttributesList(node)
+  if (astUtils.hasProp(_.get(node, 'openingElement.attributes'), attrs)) {
+    const l10nAttrsList = getAttributesList(node);
     attributes = pullLocalizedDOMAttributes(childNode, l10nAttrsList);
   }
   const comments = getComments(childNode);
   const messages = getMessages(childNode);
   const message = messages.join('\n    ');
-  const comment = comments.join('\n# ')
+  const comment = comments.join('\n# ');
   if (_.isEmpty(message) && _.isEmpty(attributes)) {
     const componentType = astUtils.elementType(
       _.get(childNode, 'openingElement')
@@ -120,7 +115,11 @@ function findTranslatableMessages(node, localizationKey) {
     console.error(error);
     return error;
   }
-  return {message:_.trim(message), comment: _.trim(comment), attributes: _.trim(attributes)};
+  return {
+    message: _.trim(message),
+    comment: _.trim(comment),
+    attributes: _.trim(attributes)
+  };
 }
 
 function compileFtlMessages(node) {

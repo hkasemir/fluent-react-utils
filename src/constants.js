@@ -12,4 +12,4 @@ module.exports = {
     l10nVars: 'l10nVars',
     l10nJSX: 'l10nJSX'
   }
-}
+};

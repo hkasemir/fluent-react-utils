@@ -4,7 +4,8 @@
   "description": "AST walker using babel-eslint parser and acorn walk",
   "main": "index.js",
   "scripts": {
-    "test": "node ./examples/test"
+    "test": "node ./examples/test",
+    "prettier": "prettier '{src,examples}/*.js' --write"
   },
   "author": "hkasemir",
   "license": "ISC",
@@ -14,5 +15,8 @@
     "fluent-syntax": "^0.7.0",
     "jsx-ast-utils": "^2.0.1",
     "lodash": "^4.17.10"
+  },
+  "devDependencies": {
+    "prettier": "^1.12.1"
   }
 }

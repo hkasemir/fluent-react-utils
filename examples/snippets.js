@@ -54,5 +54,5 @@ module.exports = {
     <Localized id='foo' attrs={{placeholder: true}}>
       <input type='text' placeholder='here is some placeholder text' />
     </Localized>
-  `,
+  `
 };
