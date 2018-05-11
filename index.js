@@ -70,18 +70,20 @@ function getMessages(node) {
   });
 }
 
-function pullLocalizedDOMAttributes(node) {
-  const attributes = _.get(node, 'openingElement.attributes');
-  const localizedProps = astUtils.getPropValue(
-    astUtils.getProp(attributes, attrs)
-  );
+function getAttributesList(node) {
+  const attributes = astUtils.getProp(node.openingElement.attributes, attrs)
+  const l10nAttrs = _.get(attributes, 'value.expression.properties')
+  return _.map(l10nAttrs, 'key.name');
+}
 
+function pullLocalizedDOMAttributes(node, l10nAttrsList) {
+  const attributes = _.get(node, 'openingElement.attributes');
+  const l10nAttributes = _.filter(attributes, att => _.includes(l10nAttrsList, att.name.name))
   return _.reduce(
-    localizedProps,
-    (ftlRules, propName) => {
-      const message = astUtils.getPropValue(
-        astUtils.getProp(attributes, propName)
-      );
+    l10nAttributes,
+    (ftlRules, attribute) => {
+      const propName = _.get(attribute, 'name.name')
+      const message = _.get(attribute, 'value.value')
       return `${ftlRules}
     .${propName} = ${message}`;
     },
@@ -91,19 +93,21 @@ function pullLocalizedDOMAttributes(node) {
 
 function findTranslatableMessages(node, localizationKey) {
   const childNode = findChildNode(node);
+  let attributes = '';
   if (
     astUtils.hasProp(
-      _.get(childNode, 'openingElement.attributes'),
+      _.get(node, 'openingElement.attributes'),
       attrs
     )
   ) {
-    return pullLocalizedDOMAttributes(childNode);
+    const l10nAttrsList = getAttributesList(node)
+    attributes = pullLocalizedDOMAttributes(childNode, l10nAttrsList);
   }
   const comments = getComments(childNode);
   const messages = getMessages(childNode);
   const message = messages.join('\n    ');
   const comment = comments.join('\n# ')
-  if (!message) {
+  if (_.isEmpty(message) && _.isEmpty(attributes)) {
     const componentType = astUtils.elementType(
       _.get(childNode, 'openingElement')
     );
@@ -116,20 +120,20 @@ function findTranslatableMessages(node, localizationKey) {
     console.error(error);
     return error;
   }
-  return [_.trim(message), _.trim(comment)];
+  return {message:_.trim(message), comment: _.trim(comment), attributes: _.trim(attributes)};
 }
 
 function compileFtlMessages(node) {
   if (astUtils.elementType(node.openingElement) !== 'Localized') {
-    return;
+    return '';
   }
   const localizationKey = findLocalizationKey(node);
-  const [translatableMessages, comments] = findTranslatableMessages(
+  const { message, comment, attributes } = findTranslatableMessages(
     node,
     localizationKey
   );
-  const commentRule = comments ? `# ${comments}\n` : '';
-  return `${commentRule}${localizationKey} = ${translatableMessages}\n`;
+  const commentRule = comment ? `# ${comment}\n` : '';
+  return `${commentRule}${localizationKey} = ${message}\n    ${attributes}`;
 }
 
 function clean(ftlRules) {
