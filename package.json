@@ -1,8 +1,8 @@
 {
-  "name": "babel-eslint-walk",
-  "version": "1.0.0",
-  "description": "AST walker using babel-eslint parser and acorn walk",
-  "main": "index.js",
+  "name": "fluent-react-utils",
+  "version": "0.1.0",
+  "description": "helpers for ease of use with fluent-react",
+  "main": "src/index.js",
   "scripts": {
     "test": "node ./examples/test",
     "prettier": "prettier '{src,examples}/*.js' --write"
