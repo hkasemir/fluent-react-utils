@@ -1,4 +1,4 @@
-const parse = require('../index.js');
+const parse = require('../src/index.js');
 const snippets = require('./snippets');
 
 console.log('withExpressionMessage');
