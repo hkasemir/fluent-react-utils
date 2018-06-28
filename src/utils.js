@@ -2,6 +2,7 @@ const fluent = require('fluent-syntax');
 const { AST_NODE_TYPES, FLUENT_ATTRS } = require('./constants');
 const astUtils = require('jsx-ast-utils');
 const _ = require('lodash');
+const prompt = require('prompt');
 
 const {
   JSXElement,
@@ -128,14 +129,65 @@ function compileFtlMessages(node) {
     localizationKey
   );
   const commentRule = comment ? `# ${comment}\n` : '';
-  return `${commentRule}${localizationKey} = ${message}\n    ${attributes}`;
+  const attributeRule = attributes ? `    ${attributes}` : '';
+  return `${commentRule}${localizationKey} = ${message}\n${attributeRule}`;
+}
+
+function getFluentId(message) {
+  return _.get(message, 'id.name');
+}
+
+function getFluentMessage(message) {
+  const resource = new fluent.Resource([message]);
+  return fluent.serialize(resource);
+}
+
+function dedupe(messages) {
+  const unique = _.reduce(
+    messages,
+    (map, message) => {
+      const l10nId = getFluentId(message);
+      const l10nMessage = getFluentMessage(message);
+      if (map.has(l10nId)) {
+        const originalMessage = getFluentMessage(map.get(l10nId));
+        if (originalMessage !== l10nMessage) {
+          const promptString = `which string do you want (1 or 2)?
+       *1: ${originalMessage}
+        2: ${l10nMessage}`;
+          console.log(`Duplicate id ${l10nId}`);
+          prompt.start();
+          prompt.get(
+            [promptString],
+            (err, result) => {
+              if (result[promptString] === '2') {
+                console.log(`setting ${l10nMessage}`);
+              } else {
+                console.log(`setting ${originalMessage}`);
+                return map;
+              }
+            }
+          );
+        } else {
+          console.log(`Duplicate id ${l10nId}, messages are the same`);
+        }
+      }
+      map.set(l10nId, message);
+      return map;
+    },
+    new Map()
+  );
+  const newBody = [...unique.values()]
+  console.log(newBody)
+  return newBody;
 }
 
 function clean(ftlRules) {
   // uses fluent-syntax to parse and then serialize the strings to ensure they
   // are properly formatted
   const resource = fluent.parse(ftlRules);
-  return fluent.serialize(resource);
+  const messages = _.get(resource, 'body');
+  const uniqueMessages = dedupe(messages);
+  return fluent.serialize(new fluent.Resource(uniqueMessages));
 }
 
 module.exports = {

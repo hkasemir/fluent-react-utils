@@ -11,6 +11,39 @@ module.exports = {
       </span>
     </Localized>
   `,
+  withMultipleMessages: `
+    <div>
+      <Localized id='firstMessage'>
+        <span>
+          say one thing
+        </span>
+      </Localized>
+      <Localized id='secondMessage'>
+        <span>
+          say another thing
+        </span>
+      </Localized>
+    </div>
+  `,
+  withDuplicateMessageIds: `
+    <div>
+      <Localized id='message1'>
+        <span>
+          say one thing
+        </span>
+      </Localized>
+      <Localized id='message1'>
+        <span>
+          say one thing
+        </span>
+      </Localized>
+      <Localized id='message1'>
+        <span>
+          say another thing
+        </span>
+      </Localized>
+    </div>
+  `,
   withDecoratorAndImport: `
   import {Localized} from 'fluent-react';
   @cssModule(styles)
@@ -53,6 +86,20 @@ module.exports = {
   withAttributes: `
     <Localized id='foo' attrs={{placeholder: true}}>
       <input type='text' placeholder='here is some placeholder text' />
+    </Localized>
+  `,
+  withVariables: `
+    <Localized id='foo' $name='world'>
+      <span>
+        {'hello, { $name }'}
+      </span>
+    </Localized>
+  `,
+  withElements: `
+    <Localized id='foo' click={<button />}>
+      <span>
+        {'click here to <click>do a thing</click>'}
+      </span>
     </Localized>
   `
 };
