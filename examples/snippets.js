@@ -101,5 +101,29 @@ module.exports = {
         {'click here to <click>do a thing</click>'}
       </span>
     </Localized>
-  `
+  `,
+  withHTMLShorthand: `
+    <Loc.Span l10nId='withHTMLShorthand'>
+      {'hello, world'}
+    </Loc.Span>
+  `,
+  withShorthandCommentAndExpression: `
+    <Loc.Span l10nId='withShorthandCommentAndExpression'>
+      {/* this is a comment */}
+      {'text in an expression'}
+    </Loc.Span>
+  `,
+  withShorthandAttributes: `
+    <Loc.Input l10nId='withShorthandAttributes' type='text' placeholder='here is some placeholder text' />
+  `,
+  withShorthandVariables: `
+    <Loc.Span l10nId='withShorthandVariables' l10nVars={{name: 'world'}}>
+      {'hello, { $name }'}
+    </Loc.Span>
+  `,
+  withShorthandElements: `
+    <Loc.Span l10nId='withShorthandElements' l10nJsx={{click: <button />}}>
+      {'click here to <click>do a thing</click>'}
+    </Loc.Span>
+  `,
 };

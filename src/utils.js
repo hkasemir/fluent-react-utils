@@ -1,5 +1,5 @@
 const fluent = require('fluent-syntax');
-const { AST_NODE_TYPES, FLUENT_ATTRS } = require('./constants');
+const { AST_NODE_TYPES, FLUENT_ATTRS, STANDARD_ELEMENT_TYPES } = require('./constants');
 const astUtils = require('jsx-ast-utils');
 const _ = require('lodash');
 const prompt = require('prompt');
@@ -12,12 +12,16 @@ const {
   StringLiteral
 } = AST_NODE_TYPES;
 
-const { attrs } = FLUENT_ATTRS;
+const { attrs, l10nId } = FLUENT_ATTRS;
 
-function getLocalizationKey(localizedNode = {}) {
+function isHTMLShorthand(elementType) {
+  return (/Loc\.[A-Z]/.test(elementType));
+}
+
+function getLocalizationKey(localizedNode = {}, identifier = 'id') {
   const prop = astUtils.getProp(
     _.get(localizedNode, 'openingElement.attributes'),
-    'id'
+    identifier 
   );
   return _.get(prop, 'value.value');
 }
@@ -71,7 +75,18 @@ function getAttributesList(node) {
   return _.map(l10nAttrs, 'key.name');
 }
 
+function getAllowedAttrs(elementType) {
+  let elemName = elementType.split('.')[1];
+  elemName = elemName.toLowerCase();
+  return _.map(STANDARD_ELEMENT_TYPES[elemName], (isAllowed, name) => {
+    return isAllowed ? name : '';
+  });
+}
+
 function pullLocalizedDOMAttributes(node, l10nAttrsList) {
+  if (_.isEmpty(l10nAttrsList)) {
+    return '';
+  }
   const attributes = _.get(node, 'openingElement.attributes');
   const l10nAttributes = _.filter(attributes, (att) =>
     _.includes(l10nAttrsList, _.get(att, 'name.name'))
@@ -88,25 +103,13 @@ function pullLocalizedDOMAttributes(node, l10nAttrsList) {
   );
 }
 
-function findTranslatableMessages(node, localizationKey) {
-  const childNode = findChildNode(node);
-  let attributes = '';
-  if (astUtils.hasProp(_.get(node, 'openingElement.attributes'), attrs)) {
-    const l10nAttrsList = getAttributesList(node);
-    attributes = pullLocalizedDOMAttributes(childNode, l10nAttrsList);
-  }
-  const comments = getComments(childNode);
-  const messages = getMessages(childNode);
+function formatMessage({messages, comments, attributes, componentType, localizationKey}) {
   const message = messages.join('\n    ');
   const comment = comments.join('\n# ');
   if (_.isEmpty(message) && _.isEmpty(attributes)) {
-    const componentType = astUtils.elementType(
-      _.get(childNode, 'openingElement')
-    );
     const error = `STRING_IMPORT_ERROR:
      - no translated props or message provided to ${componentType}
-     - add a "attrs" object with the propNames of the DOM Attributes to be translated
-     - or pass in a non-empty translatable message as a child
+     - pass in a non-empty translatable message as a child or applicable attributes
      - check the component with the localization ID "${localizationKey}"
 `;
     console.error(error);
@@ -119,18 +122,65 @@ function findTranslatableMessages(node, localizationKey) {
   };
 }
 
-function compileFtlMessages(node) {
-  if (astUtils.elementType(node.openingElement) !== 'Localized') {
-    return '';
+function findShorthandTranslatableMessages(node, localizationKey) {
+  const componentType = astUtils.elementType(
+    _.get(node, 'openingElement')
+  );
+  const l10nAttrsList = getAllowedAttrs(componentType);
+  const attributes = pullLocalizedDOMAttributes(node, l10nAttrsList);
+  const comments = getComments(node);
+  const messages = getMessages(node);
+  return formatMessage({messages, comments, attributes, componentType, localizationKey});
+}
+
+function findTranslatableMessages(node, localizationKey) {
+  const childNode = findChildNode(node);
+  let attributes = '';
+  if (astUtils.hasProp(_.get(node, 'openingElement.attributes'), attrs)) {
+    const l10nAttrsList = getAttributesList(node);
+    attributes = pullLocalizedDOMAttributes(childNode, l10nAttrsList);
   }
+  const comments = getComments(childNode);
+  const messages = getMessages(childNode);
+  const componentType = astUtils.elementType(
+    _.get(childNode, 'openingElement')
+  );
+  return formatMessage({messages, comments, attributes, componentType, localizationKey});
+}
+
+function formatRule({localizationKey, comment, message, attributes}) {
+  const commentRule = comment ? `# ${comment}` : '';
+  const attributeRule = attributes ? `    ${attributes}` : '';
+  return `${commentRule}\n${localizationKey} = ${message}\n${attributeRule}`;
+}
+
+function getShorthandMessages(node) {
+  const localizationKey = getLocalizationKey(node, l10nId);
+  const { message, comment, attributes } = findShorthandTranslatableMessages(
+    node,
+    localizationKey
+  );
+  return formatRule({localizationKey, comment, message, attributes});
+}
+
+function getLocalizedMessages(node) {
   const localizationKey = getLocalizationKey(node);
   const { message, comment, attributes } = findTranslatableMessages(
     node,
     localizationKey
   );
-  const commentRule = comment ? `# ${comment}\n` : '';
-  const attributeRule = attributes ? `    ${attributes}` : '';
-  return `${commentRule}${localizationKey} = ${message}\n${attributeRule}`;
+  return formatRule({localizationKey, comment, message, attributes});
+}
+
+function compileFtlMessages(node) {
+  const elementType = astUtils.elementType(node.openingElement);
+  if (isHTMLShorthand(elementType)) {
+    return getShorthandMessages(node);
+  }
+  if (!/Localized/.test(elementType)) {
+    return '';
+  }
+  return getLocalizedMessages(node);
 }
 
 function getFluentId(message) {
@@ -185,9 +235,7 @@ function clean(ftlRules) {
   // uses fluent-syntax to parse and then serialize the strings to ensure they
   // are properly formatted
   const resource = fluent.parse(ftlRules);
-  const messages = _.get(resource, 'body');
-  const uniqueMessages = dedupe(messages);
-  return fluent.serialize(new fluent.Resource(uniqueMessages));
+  return fluent.serialize(resource);
 }
 
 module.exports = {
